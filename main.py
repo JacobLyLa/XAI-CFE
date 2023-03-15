@@ -10,17 +10,34 @@ def main():
         model = pickle.load(f)
 
     df = pd.read_csv('datasets/diabetes.csv')
-
-    # only first 2 features
     X = df.drop(columns = 'Outcome')
-    #y = df['Outcome']
-
-    P_prime = 0.9
-    bnds = ((0,None), (100,200), (50, 200), (20, 50), (0, None), (10, 100), (0, None), (0, None))
-    cons = ({'type':'eq','fun': lambda x :  x[0]-int(x[0])})
-    counterfactuals = get_counterfactuals(X.loc[0].values, P_prime, model, X, 
-                                          cost_function=wachter2017_cost_function, tol=0.05, bnds=bnds, cons=cons)
+    y = df['Outcome']
+    x_example = X.loc[0]
+    y_example = y.loc[0]
+    
+    P_prime = 0.3
+    boundaries = [(int, x_example.values[0], 10), (float, 100,200), (float, 50, 200), 
+                  (float, 20, 50), (float, 0, 100), (int, 1, 100), 
+                  (float, 0, 5), (int, x_example.values[-1], 100)] 
+    counterfactuals = get_counterfactuals(x_example.values, P_prime, model, X, 
+                                          cost_function=wachter2017_cost_function, tol=0.03, 
+                                          boundaries=boundaries, optimization_method="scipy", optimization_steps=10)
+    
+    print('Original example:')
+    print(x_example.to_frame().T)
+    print(f"Predicted probability: {model.predict_proba(x_example.values.reshape((1, -1)))[0][0]}")
+    print(f"Wanted probability: {P_prime}")
+    print(f"Actual probability: {y_example}")
+    print()
+    print('Counterfactuals:')
     print(counterfactuals)
+    print("Predicted probabilities:")
+    for i in range(counterfactuals.shape[0]):
+        print(model.predict_proba(counterfactuals.iloc[i].values.reshape((1, -1)))[0][0])
+    print()
+    print('Difference between original example and counterfactuals:')
+    print(counterfactuals - x_example.values)
+    print()
 
 if __name__ == "__main__":
     main()
