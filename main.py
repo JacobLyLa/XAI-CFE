@@ -11,6 +11,7 @@ def main():
 
     df = pd.read_csv('datasets/diabetes.csv')
     X = df.drop(columns = 'Outcome')
+
     y = df['Outcome']
     x_example = X.loc[0]
     y_example = y.loc[0]
