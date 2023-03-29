@@ -28,7 +28,7 @@ def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, to
     if (optimization_method=="optuna"):
         for lambda_k in lambdas:
             objective_arguments = x, y_prime_target, lambda_k, model, X, cost_function, features
-            study = optuna.create_study(direction='minimize')
+            study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler( seed=42))
             study.optimize(lambda trial: objective(trial, *objective_arguments), n_trials=optimization_steps)
 
             x_prime_hat = np.array(list(study.best_params.values()))
@@ -53,8 +53,6 @@ def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, to
     # check if any counterfactual candidates meet the tolerance condition
     eps_condition = np.abs(Y_primes - y_prime_target) <= tol
     relevant_candidates = candidates[eps_condition]
-    # print y_primes of relevant candidates
-    print(Y_primes[eps_condition])
     if framed:
         return pd.DataFrame(data=relevant_candidates, columns=X.columns)
     return relevant_candidates
