@@ -1,7 +1,7 @@
 import pickle
 import pandas as pd
 from counterfactuals import get_counterfactuals
-from cost_functions import wachter2017_cost_function
+from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function
 import warnings
 from prefrences import Feature, get_constant_weight_function, get_pow_weight_function
 warnings.filterwarnings('ignore')
@@ -32,7 +32,7 @@ def main():
     # features.append(Feature('Age', float, (x_example.values[-1], x_example.values[-1]+10), get_constant_weight_function(1)))
 
     counterfactuals = get_counterfactuals(x_example.values, P_prime, model, X, 
-                                          cost_function=wachter2017_cost_function, tol=0.1, 
+                                          cost_function=weighted_watcher_cost_function, tol=0.1, 
                                           features=features, optimization_method="optuna", optimization_steps=20)
 
     print('Original example:')
