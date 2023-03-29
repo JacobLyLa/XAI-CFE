@@ -1,9 +1,11 @@
 import pickle
 import pandas as pd
 from counterfactuals import get_counterfactuals
-from cost_functions import wachter2017_cost_function
+from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function
 import warnings
+from prefrences import Feature, get_constant_weight_function, get_pow_weight_function
 warnings.filterwarnings('ignore')
+pd.options.display.float_format = '{:.5f}'.format
 
 def main():
     with open('pretrained_models/model_svc_diabetes.pkl', 'rb') as f:
@@ -11,19 +13,28 @@ def main():
 
     df = pd.read_csv('datasets/diabetes.csv')
     X = df.drop(columns = 'Outcome')
-
     y = df['Outcome']
+
     x_example = X.loc[0]
     y_example = y.loc[0]
     
-    P_prime = 0.3
-    boundaries = [(int, x_example.values[0], 10), (float, 100,200), (float, 50, 200), 
-                  (float, 20, 50), (float, 0, 100), (int, 1, 100), 
-                  (float, 0, 5), (int, x_example.values[-1], 100)] 
+    P_prime = 0.1
+
+    features = []
+    features.append(Feature('Pregnancies', int, (x_example.values[0], 10), get_constant_weight_function(1)))
+    features.append(Feature('Glucose', float, (100, 200), get_constant_weight_function(1)))
+    features.append(Feature('BloodPressure', float, (50, 200), get_constant_weight_function(1)))
+    features.append(Feature('SkinThickness', float, (20, 50), get_constant_weight_function(1)))
+    features.append(Feature('Insulin', float, (0, 100), get_constant_weight_function(1)))
+    features.append(Feature('BMI', int, (1, 100), get_constant_weight_function(1)))
+    features.append(Feature('DiabetesPedigreeFunction', float, (0, 5), get_constant_weight_function(1)))
+    features.append(Feature('Age', float, (x_example.values[-1], x_example.values[-1]+10), get_pow_weight_function(x_example.values[-1], x_example.values[-1]+10, 20, 1000)))
+    # features.append(Feature('Age', float, (x_example.values[-1], x_example.values[-1]+10), get_constant_weight_function(1)))
+
     counterfactuals = get_counterfactuals(x_example.values, P_prime, model, X, 
-                                          cost_function=wachter2017_cost_function, tol=0.03, 
-                                          boundaries=boundaries, optimization_method="scipy", optimization_steps=10)
-    
+                                          cost_function=weighted_watcher_cost_function, tol=0.1, 
+                                          features=features, optimization_method="optuna", optimization_steps=20)
+
     print('Original example:')
     print(x_example.to_frame().T)
     print(f"Predicted probability: {model.predict_proba(x_example.values.reshape((1, -1)))[0][0]}")
@@ -42,3 +53,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # categories
