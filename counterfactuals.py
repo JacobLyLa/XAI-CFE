@@ -36,7 +36,9 @@ def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, to
             study.optimize(lambda trial: objective(trial, *objective_arguments), n_trials=optimization_steps)
 
             #x_prime_hat = np.array(list(study.best_params.values()))
-            x_prime_hat = x.copy()
+            # i tilfelle ikke endrer alle features, sender bare de som skal endres hit, så endrer på de aktuelle
+            x_prime_hat = x.copy() #
+
             for param in x.columns.values:
                 if param in study.best_params:
                     #x_prime_hat[param] = study.best_params[param]
@@ -46,14 +48,13 @@ def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, to
             except:
                 prediction = model.predict_proba(x_prime_hat)[0][0] # when the model is train to predict from DataFrane
             Y_primes.append(prediction)
-            candidates.append(x_prime_hat.values[0])
+            candidates.append(x_prime_hat.values[0]) #siden nå sender som dataframe
     elif (optimization_method=="scipy"):
         bounds = [features[i].boundaries for i in range(len(features))]
         for lambda_k in lambdas:
             weight_functions = [feature.weight_function for feature in features]
             objective_arguments = x, y_prime_target, lambda_k, model, X, weight_functions
             # optimise the cost function -- assuming here it's smooth
-            #num_ix = x.select_dtypes(include=['int64', 'float64']).columns
             opt_features = [features[i].name for i in range(len(features))] # features that will be used in optimization
             solution = scipy.optimize.minimize(cost_function, x[opt_features], args=objective_arguments,
                                             method='SLSQP', bounds=bounds, options={'maxiter': optimization_steps})
