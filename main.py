@@ -15,28 +15,29 @@ def main():
     X = df.drop(columns = 'Outcome')
     y = df['Outcome']
 
-    x_example = X.loc[0]
+    x_example = X.loc[0:0] 
     y_example = y.loc[0]
     
     P_prime = 0.1
 
     features = []
-    features.append(Feature('Pregnancies', int, (x_example.values[0], 10), get_constant_weight_function(1)))
+    features.append(Feature('Pregnancies', int, (x_example.values[0][0], 10), get_constant_weight_function(1)))
     features.append(Feature('Glucose', float, (100, 200), get_constant_weight_function(1)))
     features.append(Feature('BloodPressure', float, (50, 200), get_constant_weight_function(1)))
     features.append(Feature('SkinThickness', float, (20, 50), get_constant_weight_function(1)))
     features.append(Feature('Insulin', float, (0, 100), get_constant_weight_function(1)))
     features.append(Feature('BMI', int, (1, 100), get_constant_weight_function(1)))
     features.append(Feature('DiabetesPedigreeFunction', float, (0, 5), get_constant_weight_function(1)))
-    features.append(Feature('Age', float, (x_example.values[-1], x_example.values[-1]+10), get_pow_weight_function(x_example.values[-1], x_example.values[-1]+10, 20, 1000)))
+    features.append(Feature('Age', float, (x_example.values[0][-1], x_example.values[0][-1]+10), get_pow_weight_function(x_example.values[0][-1], x_example.values[0][-1]+10, 20, 1000)))
     # features.append(Feature('Age', float, (x_example.values[-1], x_example.values[-1]+10), get_constant_weight_function(1)))
 
-    counterfactuals = get_counterfactuals(x_example.values, P_prime, model, X, 
+    counterfactuals = get_counterfactuals(x_example, P_prime, model, X, 
                                           cost_function=weighted_watcher_cost_function, tol=0.1, 
                                           features=features, optimization_method="optuna", optimization_steps=20)
 
     print('Original example:')
-    print(x_example.to_frame().T)
+#    print(x_example.to_frame().T)
+    print(x_example)
     print(f"Predicted probability: {model.predict_proba(x_example.values.reshape((1, -1)))[0][0]}")
     print(f"Wanted probability: {P_prime}")
     print(f"Actual probability: {y_example}")
