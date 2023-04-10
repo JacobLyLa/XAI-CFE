@@ -1,7 +1,8 @@
 import pickle
 import pandas as pd
 from counterfactuals import get_counterfactuals
-from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function, wachter2017_cost_function_ignore_categorical
+from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function, wachter2017_cost_function_ignore_categorical, \
+            wachter2017_cost_function_with_categorical
 import warnings
 import math
 from prefrences import Feature, get_constant_weight_function, get_pow_weight_function
@@ -19,31 +20,47 @@ def main():
         model = pickle.load(f)
 
     df = pd.read_csv('datasets/adult.csv', na_values='?')
+    df = df.drop(columns = ['fnlwgt'])
     df = df.dropna()
 
-    num_ix = df.select_dtypes(include=['int64', 'float64']).columns
+    #num_ix = df.select_dtypes(include=['int64', 'float64']).columns
 
-    X = df.drop(columns=['income'])
-    x=X.loc[15].values
-    x = x.reshape((1, -1))
-    sample_df = X.loc[12:12]
-    print(sample_df)
+    X = df.drop(columns=['income', 'education'])
+    #x=X.loc[15].values
+    #x = x.reshape((1, -1))
+    #sample_df = X.loc[12:12]
+    #print(sample_df)
     #print(model.predict_proba(sample_df))
     #print(model.predict_proba(sample_df))
 
+    ashley = {'age': 30,
+          'workclass': 'Private',
+          'educational-num': 10,
+          'marital-status': 'Never-married',
+          'occupation': 'Sales', # so she is a cashier, or ndependent consultant for Oriflame
+          'relationship': 'Own-child',
+          'race': 'White',
+          'gender': 'Female',
+          'capital-gain': 0,
+          'capital-loss': 0,
+          'hours-per-week': 25,
+          'native-country': 'United-States'}
+    ashley_df = pd.DataFrame(ashley, index=[0])
   #  cost = wachter2017_cost_function_ignore_categorical(x_prime=sample_df, x=sample_df, y_prime=0.9, lambda_value=1, model = model, X=X)
    # print(cost)
     features = []
-    features.append(Feature('age', float, (sample_df.values[0][0]-20, sample_df.values[0][0]+20), get_constant_weight_function(1)))
-    features.append(Feature('fnlwgt', float, ( sample_df.values[0][2]-10, sample_df.values[0][2]+10), get_constant_weight_function(1)))
-    features.append(Feature('educational-num', int, (sample_df.values[0][4], sample_df.values[0][4]+20), get_constant_weight_function(1)))
-    features.append(Feature('capital-gain', int, (sample_df.values[0][10]-20, sample_df.values[0][10]+20), get_constant_weight_function(1)))
-    features.append(Feature('capital-loss', int, (sample_df.values[0][11]-20, sample_df.values[0][11]+20), get_constant_weight_function(1)))
-    features.append(Feature('hours-per-week', int, (sample_df.values[0][12], sample_df.values[0][12]+200), get_constant_weight_function(1)))
-    counterfactuals = get_counterfactuals(x=sample_df, y_prime_target=0.7, model=model, X=X, cost_function=wachter2017_cost_function_ignore_categorical, \
-                                           features=features, tol=0.2, optimization_method="optuna", optimization_steps=100, framed=True)
+    features.append(Feature('age', float, (0, 100), get_constant_weight_function(1)))
+    features.append(Feature('workclass', object, ['Private', 'Local-gov', 'Self-emp-not-inc', 'Federal-gov',
+                                                  'State-gov', 'Self-emp-inc', 'Without-pay'], get_constant_weight_function(1)))
+    features.append(Feature('educational-num', int, (1, 14), get_constant_weight_function(1)))
+    features.append(Feature('capital-gain', int, (ashley_df.values[0][8]-20, ashley_df.values[0][8]+20), get_constant_weight_function(1)))
+    features.append(Feature('capital-loss', int, (ashley_df.values[0][9]-20, ashley_df.values[0][9]+20), get_constant_weight_function(1)))
+    features.append(Feature('hours-per-week', int, (0, 100), get_constant_weight_function(1)))
+    counterfactuals = get_counterfactuals(x=ashley_df, y_prime_target=0.3, model=model, X=X, cost_function=wachter2017_cost_function_with_categorical, \
+                                           features=features, tol=0.5, optimization_method="optuna", optimization_steps=100, framed=True)
 
     print(counterfactuals)
+    #print(model.predict_proba(counterfactuals))
     
 
 if __name__ == "__main__":
