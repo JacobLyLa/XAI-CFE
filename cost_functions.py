@@ -62,7 +62,11 @@ def wachter2017_cost_function_with_categorical(x_prime: pd.DataFrame, x: pd.Data
     mad =  scipy.stats.median_abs_deviation(X[num_ix], axis=0)
      # when we use optuna x_prime is DataFrame, TODO: sklearn?
     distance_numerical = np.sum(np.abs(x[num_ix].values-x_prime[num_ix].values)/(mad+1)) #[num_ix].values
-    distance_categotical = 0 #TODO implement
+    # Calculate categorical distance
+    distance_categorical = 0
+    for feature in cat_ix:
+        if x[feature].values != x_prime[feature].values:
+            distance_categorical += 1
     prediction = model.predict_proba(x_prime)[0][0]
     misfit = (prediction-y_prime)**2
-    return lambda_value * misfit + distance_numerical + distance_categotical
+    return lambda_value * misfit + distance_numerical + distance_categorical

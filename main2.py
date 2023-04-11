@@ -53,15 +53,37 @@ def main():
     features.append(Feature('workclass', object, ['Private', 'Local-gov', 'Self-emp-not-inc', 'Federal-gov',
                                                   'State-gov', 'Self-emp-inc', 'Without-pay'], get_constant_weight_function(1)))
     features.append(Feature('educational-num', int, (1, 14), get_constant_weight_function(1)))
-    features.append(Feature('capital-gain', int, (ashley_df.values[0][8]-20, ashley_df.values[0][8]+20), get_constant_weight_function(1)))
-    features.append(Feature('capital-loss', int, (ashley_df.values[0][9]-20, ashley_df.values[0][9]+20), get_constant_weight_function(1)))
+    features.append(Feature('marital-status', object, ['Married-spouse-absent', 'Married-civ-spouse', 'Never-married',
+       'Divorced', 'Separated', 'Widowed', 'Married-AF-spouse'], get_constant_weight_function(1)))
+    features.append(Feature('occupation', object, ['Adm-clerical', 'Farming-fishing', 'Craft-repair',
+       'Exec-managerial', 'Sales', 'Handlers-cleaners',
+       'Transport-moving', 'Prof-specialty', 'Other-service',
+       'Machine-op-inspct', 'Protective-serv', 'Tech-support',
+       'Priv-house-serv', 'Armed-Forces'], get_constant_weight_function(1)))
+    features.append(Feature('relationship', object, ['Unmarried', 'Husband', 'Other-relative', 'Not-in-family',
+       'Own-child', 'Wife'], get_constant_weight_function(1)))
+    features.append(Feature('race', object, ['Amer-Indian-Eskimo', 'White', 'Black', 'Asian-Pac-Islander',
+       'Other'], get_constant_weight_function(1)))
+    features.append(Feature('gender', object, ['Female', 'Male'],  get_constant_weight_function(1)))
+    features.append(Feature('capital-gain', int, (0, 10**8), get_constant_weight_function(1)))
+    features.append(Feature('capital-loss', int, (0, 10*8), get_constant_weight_function(1)))
     features.append(Feature('hours-per-week', int, (0, 100), get_constant_weight_function(1)))
+    features.append(Feature('native-country', object, ['United-States', 'Mexico', 'Vietnam', 'South', 'Germany',
+       'Ecuador', 'Philippines', 'Columbia', 'Italy', 'England', 'Canada',
+       'Dominican-Republic', 'China', 'Jamaica', 'Cambodia', 'Japan',
+       'India', 'Poland', 'France', 'Cuba', 'Puerto-Rico', 'Taiwan',
+       'Iran', 'Outlying-US(Guam-USVI-etc)', 'El-Salvador', 'Peru',
+       'Ireland', 'Nicaragua', 'Greece', 'Trinadad&Tobago', 'Guatemala',
+       'Haiti', 'Portugal', 'Laos', 'Yugoslavia', 'Scotland', 'Honduras',
+       'Hong', 'Thailand', 'Hungary'], get_constant_weight_function(1)))
     counterfactuals = get_counterfactuals(x=ashley_df, y_prime_target=0.3, model=model, X=X, cost_function=wachter2017_cost_function_with_categorical, \
-                                           features=features, tol=0.5, optimization_method="optuna", optimization_steps=100, framed=True)
+                                           features=features, tol=0.05, optimization_method="optuna", optimization_steps=1000, framed=True)
 
+    print(model.predict_proba(ashley_df))
     print(counterfactuals)
-    #print(model.predict_proba(counterfactuals))
+    print(model.predict_proba(counterfactuals))
     
+
 
 if __name__ == "__main__":
     main()
