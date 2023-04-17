@@ -6,8 +6,13 @@ import numpy as np
 """
 def get_constant_weight_function(const_weight):
     def constant_weight_function(x):
-        return x*const_weight
+        return const_weight
     return constant_weight_function
+
+def get_line_slope_function(slope):
+    def constant_line_slope_function(x):
+        return x*slope
+    return constant_line_slope_function
 
 def get_pow_weight_function(a, b, j, c):
     a += (b - a)/2
