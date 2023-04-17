@@ -78,7 +78,7 @@ def main():
        #'Haiti', 'Portugal', 'Laos', 'Yugoslavia', 'Scotland', 'Honduras',
        #'Hong', 'Thailand', 'Hungary'], get_constant_weight_function(1)))
     counterfactuals = get_counterfactuals(x=ashley_df, y_prime_target=0.3, model=model, X=X, cost_function=wachter2017_cost_function_with_categorical, \
-                                           features=features, tol=0.2, optimization_method="optuna", optimization_steps=500, framed=True)
+                                           features=features, tol=0.2, optimization_method="optuna", optimization_steps=250, framed=True)
     print(model.predict_proba(ashley_df))
     print(counterfactuals)
     print(model.predict_proba(counterfactuals))

@@ -6,20 +6,12 @@ import numpy as np
 """
 def get_constant_weight_function(const_weight):
     def constant_weight_function(x):
-        return const_weight
+        return x*const_weight
     return constant_weight_function
 
-def get_line_slope_function(slope):
-    def constant_line_slope_function(x):
-        return x*slope
-    return constant_line_slope_function
-
 def get_pow_weight_function(a, b, j, c):
-    a += (b - a)/2
     def pow_weight_function(x):
-        if x < a:
-            return pow_weight_function(2*a-x)
-        if x > b:
+        if x < a or x > b:
             return c
         d = c/b**j * 1/(1/b**j - 1/a**j)
         k = -d/a**j
@@ -55,11 +47,8 @@ class Feature:
         else:
             self.value = trial.suggest_categorical(self.name, self.boundaries)
 
-    def __str__(self):
-        return f"{self.name}: boundaries: {self.boundaries}"
-
 if __name__ == "__main__":
     # define a feature
-    feature = Feature("age", int, (30, 100), get_pow_weight_function(5,35, 15, 1000))
+    feature = Feature("age", int, (30, 100), get_pow_weight_function(50, 60, 20, 1000))
     # plot the weight function
     plot_function(feature.weight_function, 0, 100)

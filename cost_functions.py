@@ -9,9 +9,9 @@ import pandas as pd
 def mad_weighted_distance(x_prime, x, X, weight_functions):
     mad = scipy.stats.median_abs_deviation(X, axis=0)
     # weight x and x_prime
-    x_prime_weighted = np.array([weight_functions[i](x_prime.values[i]) for i in range(len(x_prime))])
-    x_weighted = np.array([weight_functions[i](x.values[i]) for i in range(len(x))])
-    distance = np.sum(np.abs(x_weighted-x_prime_weighted)/mad)
+    x_prime_weighted = np.array([[weight_functions[i](x_prime.values[0][i]) for i in range(x_prime.shape[1])]])
+    x_weighted = np.array([[weight_functions[i](x.values[0][i]) for i in range(x.shape[1])]])
+    distance = np.sum(np.abs(x_weighted-x_prime_weighted)/(mad+1))
     return distance
 
 def mad_distance(x_prime, x, X):
@@ -61,12 +61,16 @@ def wachter2017_cost_function_with_categorical(x_prime: pd.DataFrame, x: pd.Data
     num_ix = X.select_dtypes(include=['int64', 'float64']).columns  # numerical features
     mad =  scipy.stats.median_abs_deviation(X[num_ix], axis=0)
      # when we use optuna x_prime is DataFrame, TODO: sklearn?
-    distance_numerical = np.sum(np.abs(x[num_ix].values-x_prime[num_ix].values)/(mad+1)) #[num_ix].values
+    # numeriske indexer
+    num_indexes =  [x_prime.columns.get_loc(col) for col in num_ix] 
+    num_weight_functions = np.array(weighted_functions)[[x_prime.columns.get_loc(col) for col in num_ix] ]
+    distance_numerical = mad_weighted_distance(x_prime=x_prime[num_ix], x=x[num_ix],X=X[num_ix], weight_functions= num_weight_functions)
+    #distance_numerical = np.sum(np.abs(x[num_ix].values-x_prime[num_ix].values)/(mad+1)) #[num_ix].values
     # Calculate categorical distance
     distance_categorical = 0
     for feature in cat_ix:
         if x[feature].values != x_prime[feature].values:
-            distance_categorical += 1
+            distance_categorical += 5000
     prediction = model.predict_proba(x_prime)[0][0]
     misfit = (prediction-y_prime)**2
     return lambda_value * misfit + distance_numerical + distance_categorical

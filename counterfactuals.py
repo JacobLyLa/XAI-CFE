@@ -15,7 +15,15 @@ def objective(trial, x, y_prime_target, lambda_k, model, X, cost_function, featu
     #x_prime = np.array([feature.value for feature in features])
     
     
-    weight_functions = [feature.weight_function for feature in features]
+    #weight_functions = [feature.weight_function for feature in features] #TODO: blir det ødelagt??
+    columns = x.columns
+    #feature_names = [feature.name for feature in features]
+    #weight_functions = [feature.weight_function for feature in features if feature.name]
+    #weight_functions = [feature.weight_function for feature in features if feature.name
+    weight_functions = [
+        next((feature.weight_function for feature in features if feature.name == column), None)
+        for column in columns
+    ]
     return cost_function(x_prime, x, y_prime_target, lambda_k, model, X, weight_functions)
 
 def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, tol=0.05, optimization_method="optuna", optimization_steps=10, framed=True):    
