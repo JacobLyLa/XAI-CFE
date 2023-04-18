@@ -14,12 +14,8 @@ def objective(trial, x, y_prime_target, lambda_k, model, X, cost_function, featu
         x_prime.at[x_prime.index[0], feature.name] = feature.value
     #x_prime = np.array([feature.value for feature in features])
     
-    
     #weight_functions = [feature.weight_function for feature in features] #TODO: blir det ødelagt??
     columns = x.columns
-    #feature_names = [feature.name for feature in features]
-    #weight_functions = [feature.weight_function for feature in features if feature.name]
-    #weight_functions = [feature.weight_function for feature in features if feature.name
     weight_functions = [
         next((feature.weight_function for feature in features if feature.name == column), None)
         for column in columns
@@ -40,7 +36,7 @@ def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, to
     if (optimization_method=="optuna"):
         for lambda_k in lambdas:
             objective_arguments = x, y_prime_target, lambda_k, model, X, cost_function, features
-            study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler( seed=42))
+            study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler(seed=42))
             study.optimize(lambda trial: objective(trial, *objective_arguments), n_trials=optimization_steps)
 
             #x_prime_hat = np.array(list(study.best_params.values()))

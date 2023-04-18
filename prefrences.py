@@ -44,8 +44,13 @@ class Feature:
             self.value = trial.suggest_int(self.name, self.boundaries[0], self.boundaries[1])
         elif self.variable_type == float:
             self.value = trial.suggest_uniform(self.name, self.boundaries[0], self.boundaries[1])
-        else:
+        elif self.variable_type == object:
             self.value = trial.suggest_categorical(self.name, self.boundaries)
+        else:
+            raise ValueError("variable_type must be int, float or object")
+
+    def __str__(self):
+        return f"{self.name}={self.value} boundaries={self.boundaries}"
 
 if __name__ == "__main__":
     # define a feature
