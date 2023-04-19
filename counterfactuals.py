@@ -25,7 +25,7 @@ def objective(trial, x, y_prime_target, lambda_k, model, X, cost_function, featu
 def get_counterfactuals(x, y_prime_target, model, X, cost_function, features, tol=0.05, optimization_method="optuna", optimization_steps=10, framed=True):    
     lambda_min =  1e-10
     lambda_max = 1e5
-    lambda_steps = 10
+    lambda_steps = 5
     lambdas = np.logspace(np.log10(lambda_min), 
                             np.log10(lambda_max), 
                             lambda_steps)

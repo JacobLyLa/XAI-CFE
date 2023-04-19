@@ -14,6 +14,7 @@ random.seed(42)
 def test_metric(x_list, p_list, p_prime_list, features_list, X, model, metric, cost_func, steps):
     results = []
     for i in range(len(x_list)):
+        print(f"Testing {i+1}/{len(x_list)}")
         # get the counterfactual
         counterfactuals = get_counterfactuals(x_list[i], p_prime_list[i], model, X, 
                                             cost_function=cost_func, tol=0.2, 
@@ -26,13 +27,18 @@ def test_metric(x_list, p_list, p_prime_list, features_list, X, model, metric, c
 
         # best CF
         x_prime = counterfactuals.iloc[0]
-        results.append(metric(x_list[i].iloc[0], x_prime, X, features_list[i]))
+        results.append(metric(x_list[i].iloc[0], x_prime, X, features_list[i], p_list[i], p_prime_list[i]))
     return np.array(results)
+
+def closeness(x, x_prime, X, features, p, p_prime):
+    # calculate absolute difference between p and p_prime
+    return abs(p - p_prime)
+
 
 '''
 Takes the original x and x_prime and returns the amount of features that have been changed
 '''
-def sparsity(x, x_prime, X, features):
+def sparsity(x, x_prime, X, features, p, p_prime):
     # count the number of features that have been changed
     count = 0
     for i in range(len(x)):
@@ -43,7 +49,7 @@ def sparsity(x, x_prime, X, features):
 '''
 Takes the original x and x_prime and returns the amount of features that are off boundry
 '''
-def off_boundry(x, x_prime, X, features):
+def off_boundry(x, x_prime, X, features, p, p_prime):
     # count how many features that are off boundry
     off_boundry = 0
     for i in range(len(x)):
@@ -54,23 +60,19 @@ def off_boundry(x, x_prime, X, features):
 '''
 Takes the original x and x_prime and returns the closest datapoint in X
 '''
-def distance_closest(x, x_prime, X, features):
-    # find candidates in X where the str columns are the same as in x_prime
+def distance_closest(x, x_prime, X, features, p, p_prime):
     candidates = X.copy()
-    for i in range(len(x_prime)):
+    # remove str cols in X and x_prime
+    for i in range(len(x)):
         if features[i].variable_type == object:
-            candidates = candidates[candidates[features[i].name] == x_prime[i]]
-    # remove the str columns
-    candidates = candidates.drop(columns=[features[i].name for i in range(len(x_prime)) if features[i].variable_type == object])
-    # also remove them in x prime
-    x_prime = x_prime.drop(index=[features[i].name for i in range(len(x_prime)) if features[i].variable_type == object])
-    # calculate the distance between x_prime and the closest datapoint in X
-    if len(candidates) == 0:
-        return 1000000
+            candidates = candidates.drop(features[i].name, axis=1)
+            x_prime = x_prime.drop(features[i].name, axis=0)
+    # calculate the distance
+    diff = (candidates - x_prime).abs()
+    print(diff.sum(axis=1).min())
+    return diff.sum(axis=1).min()
 
-    return np.linalg.norm(x_prime - candidates, axis=1).min()
-
-def total_change(x, x_prime, X, features):
+def total_change(x, x_prime, X, features, p, p_prime):
     # copy x and x_prime
     x = x.copy()
     x_prime = x_prime.copy()
@@ -87,7 +89,7 @@ def total_change(x, x_prime, X, features):
 
     return np.linalg.norm(x_prime - x, ord=2)
 
-def total_change_weighted(x, x_prime, X, features):
+def total_change_weighted(x, x_prime, X, features, p, p_prime):
     # copy x and x_prime
     x = x.copy()
     x_prime = x_prime.copy()
@@ -193,9 +195,9 @@ def test():
     X =  df.drop(columns=['income', 'education'])
     y = df['income']
 
-    metric_to_test = [sparsity, distance_closest, total_change, total_change_weighted]
+    metric_to_test = [distance_closest]
     fail_count = 0
-    individuals = 10
+    individuals = 20
     for metric in metric_to_test:
         x_list = []
         p_list = []
@@ -208,7 +210,7 @@ def test():
             p_list.append(p)
             p_prime_list.append(p_prime)
             features_list.append(features)
-        results = test_metric(x_list, p_list, p_prime_list, features_list, X, model, metric, wachter2017_cost_function_with_categorical, 500)
+        results = test_metric(x_list, p_list, p_prime_list, features_list, X, model, metric, wachter2017_cost_function_ignore_categorical, 50)
         fail_count += individuals - len(results)
         print("Results for metric:", metric.__name__)
         print(results)
