@@ -1,9 +1,14 @@
 import pickle
-import pandas as pd
-from counterfactuals import get_counterfactuals
-from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function
 import warnings
-from prefrences import Feature, get_constant_weight_function, get_pow_weight_function
+
+import pandas as pd
+
+from cost_functions import (wachter2017_cost_function,
+                            weighted_watcher_cost_function)
+from counterfactuals import get_counterfactuals
+from prefrences import (Feature, get_constant_weight_function,
+                        get_pow_weight_function)
+
 warnings.filterwarnings('ignore')
 pd.options.display.float_format = '{:.5f}'.format
 

@@ -2,14 +2,15 @@
 Train models here and save them further in pretrained_models
 """
 
+import pickle
+import warnings
+
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.metrics import accuracy_score
-import numpy as np 
-import pickle
+from sklearn.model_selection import train_test_split
 
-import warnings
 warnings.filterwarnings('ignore')
 
 df = pd.read_csv('datasets/diabetes.csv')
@@ -27,6 +28,8 @@ acc_score = accuracy_score(model.predict(X_train), y_train)
 print(f"Accuracy score for train data is {acc_score}")
 acc_score = accuracy_score(model.predict(X_test), y_test)
 print(f"Accuracy score for test data is {acc_score}")
+prior = np.mean(y_train)
+print(f"Prior probability of class 1 is {prior}")
 
 # save
 with open('pretrained_models/model_svc_diabetes.pkl','wb') as f:

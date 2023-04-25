@@ -1,17 +1,24 @@
-import pickle
-import pandas as pd
-from counterfactuals import get_counterfactuals
-from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function, wachter2017_cost_function_ignore_categorical, \
-            wachter2017_cost_function_with_categorical
-import warnings
 import math
-from prefrences import Feature, get_constant_weight_function, get_pow_weight_function
+import pickle
+import warnings
+
+import pandas as pd
+
+'''
+from cost_functions import (wachter2017_cost_function,
+                            wachter2017_cost_function_ignore_categorical,
+                            wachter2017_cost_function_with_categorical,
+                            weighted_watcher_cost_function)
+from counterfactuals import get_counterfactuals
+from prefrences import (Feature, get_constant_weight_function,
+                        get_pow_weight_function)
+
 warnings.filterwarnings('ignore')
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import MinMaxScaler
 from imblearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, OneHotEncoder
+'''
+
 pd.options.display.float_format = '{:.5f}'.format
 
 
@@ -28,10 +35,9 @@ def main():
     X = df.drop(columns=['income', 'education'])
     #x=X.loc[15].values
     #x = x.reshape((1, -1))
-    #sample_df = X.loc[12:12]
-    #print(sample_df)
-    #print(model.predict_proba(sample_df))
-    #print(model.predict_proba(sample_df))
+    sample_df = X.loc[12:12]
+    print(sample_df)
+    print(model.predict_proba(sample_df))
 
     ashley = {'age': 30,
           'workclass': 'Private',
