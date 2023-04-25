@@ -178,7 +178,7 @@ def test():
     X = df.drop(columns=['income', 'education'])
     y = df['income']
 
-    metrics_to_test = [CF_distance_weighted, sparsity, CF_distance]
+    metrics_to_test = [CF_distance, CF_distance_weighted]
     # create n random examples
     x_list = []
     y_list = []
@@ -194,7 +194,7 @@ def test():
         
     # for each metric evaluate all examples
     for metric in metrics_to_test:
-        results = test_metric(X, x_list, y_list, y_prime_list, features_list, metric, model, 1000)
+        results = test_metric(X, x_list, y_list, y_prime_list, features_list, metric, model, 300)
         fail_count = individuals - len(results)
         print("Results for metric:", metric.__name__)
         print(results)

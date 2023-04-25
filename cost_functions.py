@@ -10,6 +10,7 @@ from prefrences import Feature, get_constant_weight_function, get_constant_categ
 
 
 def create_weighted_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, y_prime: float, model: object, features: list):
+    x.reset_index(drop=True, inplace=True)
     def apply_feature_weights(X, features):
         X_weighted = X.copy()
         for feature in features:
@@ -34,6 +35,7 @@ def create_weighted_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, 
 
     # Define Wachter2017 cost function
     def weighted_wachter2017_cost_function(x_prime: pd.DataFrame, lambda_value: float) -> float:
+        x_prime.reset_index(drop=True, inplace=True)
         # Normalize x_prime
         x_prime_normalized = (x_prime - medians) / mad
         # Put categorical features back
@@ -58,6 +60,7 @@ def create_weighted_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, 
     return weighted_wachter2017_cost_function
 
 def create_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, y_prime: float, model: object):
+    x.reset_index(drop=True, inplace=True)
     cat_idx = X.select_dtypes(include=['object', 'bool']).columns
     num_idx = X.select_dtypes(include=['int64', 'float64']).columns
     # Compute normalized data
@@ -72,6 +75,7 @@ def create_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, y_prime: 
 
     # Define Wachter2017 cost function
     def wachter2017_cost_function(x_prime: pd.DataFrame, lambda_value: float) -> float:
+        x_prime.reset_index(drop=True, inplace=True)
         # Normalize x_prime
         x_prime_normalized = (x_prime - medians) / mad
         
