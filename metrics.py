@@ -20,15 +20,15 @@ def test_metric(X, x_list, y_list, y_prime_list, features_list, metric, model, s
     for i in range(len(x_list)):
         x = x_list[i]
         y = y_list[i]
-        y_prime = y_prime_list[i]
+        y_target = y_prime_list[i]
         features = features_list[i]
         # the cost function to optimize CFS on  
-        cost_func = create_wachter2017_cost_function(X, x, y_prime, model)
-        #cost_func = create_weighted_wachter2017_cost_function(X, x, y_prime, model, features)
+        #cost_func = create_wachter2017_cost_function(X, x, y_target, model)
+        cost_func = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
         
         print(f"Testing {i+1}/{len(x_list)}")
         # get the counterfactual
-        CFS = get_counterfactuals(x, y_prime, model, cost_func, features, 0.3, steps) # TODO: tolerance dynamic
+        CFS = get_counterfactuals(x, y_target, model, cost_func, features, 0.1, steps) # TODO: tolerance dynamic
         
         # get best counterfactual if there are any
         # TODO: maybe a metric that checks how many time it fails generating any counterfactuals
@@ -37,17 +37,17 @@ def test_metric(X, x_list, y_list, y_prime_list, features_list, metric, model, s
 
         # best CF. TODO: do multiple CFS
         x_prime = CFS.loc[0:0]
-        results.append(metric(X, x, x_prime, y, y_prime, model, features))
+        results.append(metric(X, x, x_prime, y, y_target, model, features))
     return np.array(results)
 
-def closeness(X, x, x_prime, y, y_prime, features):
-    # calculate absolute difference between y and y_prime
-    return abs(y - y_prime)
+def closeness(X, x, x_prime, y, y_target, features):
+    # calculate absolute difference between y and y_target
+    return abs(y - y_target)
 
 '''
 Takes the original x and x_prime and returns the amount of features that have been changed
 '''
-def sparsity(X, x, x_prime, y, y_prime, model, features):
+def sparsity(X, x, x_prime, y, y_target, model, features):
     # count the number of features that have been changed
     count = 0
     x_values = x.values[0]
@@ -60,7 +60,7 @@ def sparsity(X, x, x_prime, y, y_prime, model, features):
 '''
 Takes the original x and x_prime and returns the closest datapoint in X
 '''
-def distance_closest(X, x, x_prime, y, y_prime, model, features):
+def distance_closest(X, x, x_prime, y, y_target, model, features):
     candidates = X.copy()
     # remove str cols in X and x_prime
     for i in range(len(x)):
@@ -72,12 +72,12 @@ def distance_closest(X, x, x_prime, y, y_prime, model, features):
     print(diff.sum(axis=1).min())
     return diff.sum(axis=1).min()
 
-def CF_distance(X, x, x_prime, y, y_prime, model, features):
-    watcher2017 = create_wachter2017_cost_function(X, x, y_prime, model)
+def CF_distance(X, x, x_prime, y, y_target, model, features):
+    watcher2017 = create_wachter2017_cost_function(X, x, y_target, model)
     return watcher2017(x_prime, 0) # pass lambda=0 to get distance
     
-def CF_distance_weighted(X, x, x_prime, y, y_prime, model, features):
-    watcher2017_weighted = create_weighted_wachter2017_cost_function(X, x, y_prime, model, features)
+def CF_distance_weighted(X, x, x_prime, y, y_target, model, features):
+    watcher2017_weighted = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
     return watcher2017_weighted(x_prime, 0) # pass lambda=0 to get distance
 
 def generate_individual(X, model, visualize=False):
@@ -85,12 +85,14 @@ def generate_individual(X, model, visualize=False):
     x = X.loc[x_index:x_index]
     # calculate y, from the model
     y = model.predict_proba(x)[0][0]
-    # adjust y to +- 0.1 probabilisticly, and make sure it is between 0 and 1
-    y_prime = y + random.uniform(-0.1, 0.1)
-    y_prime = max(0.0, min(1.0, y_prime))
+    # adjust y to +- 0.2 probabilisticly, and make sure it is between 0 and 1
+    y_target = y + random.uniform(-0.2, 0.2)
+    y_target = max(0.0, min(1.0, y_target))
 
     # create personalized features
     features = []
+
+    #TODO: make it 50% chance of weight feature is not 1
 
     feature_name = 'age' # can only increase
     lower_boundry = int(x[feature_name])
@@ -133,7 +135,7 @@ def generate_individual(X, model, visualize=False):
     lower_boundry = X[feature_name].min()
     upper_boundry = X[feature_name].max()
     value = x.values[0][8]
-    features.append(Feature(feature_name, value, int, (lower_boundry, 1), get_constant_weight_function(random.uniform(0.1, 5))))
+    features.append(Feature(feature_name, value, int, (lower_boundry, 1), get_constant_weight_function(random.uniform(0.1, 5)))) # change to 0 for now probably
 
     feature_name = 'capital-loss'
     lower_boundry = X[feature_name].min()
@@ -157,14 +159,14 @@ def generate_individual(X, model, visualize=False):
         print(x)
         print()
         print('y:', y)
-        print('y_prime:', y_prime)
+        print('y_target:', y_target)
         print('features:')
         print("-"*50)
         for feature in features:
             print(feature)
         print("-"*50)
 
-    return x, y, y_prime, features
+    return x, y, y_target, features
 
 def test():
     with open('pretrained_models/pipeline_adult.pkl', 'rb') as f:
@@ -186,15 +188,15 @@ def test():
     features_list = []
     individuals = 10
     for i in range(individuals):
-        x, y, y_prime, features = generate_individual(X, model, visualize=False)
+        x, y, y_target, features = generate_individual(X, model, visualize=False)
         x_list.append(x)
         y_list.append(y)
-        y_prime_list.append(y_prime)
+        y_prime_list.append(y_target)
         features_list.append(features)
         
     # for each metric evaluate all examples
     for metric in metrics_to_test:
-        results = test_metric(X, x_list, y_list, y_prime_list, features_list, metric, model, 50)
+        results = test_metric(X, x_list, y_list, y_prime_list, features_list, metric, model, 200)
         fail_count = individuals - len(results)
         print("Results for metric:", metric.__name__)
         print(results)

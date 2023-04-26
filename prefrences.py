@@ -1,3 +1,7 @@
+"""
+Weight functions and Feature helper class for usage in cost functions
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -37,12 +41,18 @@ def plot_function(function, x_min, x_max):
     Samples a value between the given boundaries and close to initial_value for faster convergence.
 """
 class Feature:
-    def __init__(self, name, initial_value, variable_type, boundaries, weight_function=None):
+    def __init__(self, name, initial_value, boundaries, weight_function=None):
         self.name = name
         self.initial_value = initial_value
-        self.variable_type = variable_type
         self.boundaries = boundaries
         self.weight_function = weight_function
+
+        if type(initial_value) == int:
+            self.variable_type = int
+        elif type(initial_value) == float:
+            self.variable_type = float
+        else:
+            self.variable_type = object
         
         if self.weight_function is None:
             if self.variable_type == int or self.variable_type == float:

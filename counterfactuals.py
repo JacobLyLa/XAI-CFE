@@ -1,35 +1,30 @@
 import numpy as np
 import optuna
 import pandas as pd
-import scipy.stats
 
-# turn off optuna warnings
+# turn off optuna verbosity
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-# for each numerical feature, check if x_prime is within the tolerance of x
-# if so revert that feature to x
+# if very small float changes, revert to original value
 def epsilon_rounding(x, x_prime, epsilon):
     for feature in x.columns.values:
         if type(x[feature].values[0]) == np.float64:
             if np.abs(x[feature].values[0] - x_prime[feature].values[0]) <= epsilon:
                 x_prime[feature] = x[feature].values[0]
 
-def objective(trial, x, lambda_k, cost_function, features):
-    x_prime = x.copy()
-    for feature in features:
-        feature.sample(trial)
-        x_prime[feature.name] = feature.value
-    epsilon_rounding(x, x_prime, 1e-3)
-    return cost_function(x_prime, lambda_k)
-
-def get_counterfactuals(x, y_prime_target, model, cost_function, features, tol, optimization_steps):    
-    lambda_min =  1e-5
-    lambda_max = 1e10
-    lambda_steps = 5
+def get_counterfactuals(x, y_target, model, cost_function, features, tol, optimization_steps):    
+    lambda_min, lambda_max, lambda_steps = 1e-3, 1e3, 6
     lambdas = np.logspace(np.log10(lambda_min), np.log10(lambda_max), lambda_steps)
-    candidates = []
-    y_primes = []
+    candidates, y_primes = [], []
  
+    def objective(trial, x, lambda_k, cost_function, features):
+        x_prime = x.copy()
+        for feature in features:
+            feature.sample(trial)
+            x_prime[feature.name] = feature.value
+        epsilon_rounding(x, x_prime, 1e-3)
+        return cost_function(x_prime, lambda_k)
+
     # scan over lambda
     for lambda_k in lambdas:
         study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler(seed=42))
@@ -48,7 +43,7 @@ def get_counterfactuals(x, y_prime_target, model, cost_function, features, tol, 
     y_primes = np.array(y_primes)
     candidates = np.array(candidates)
     # check if any counterfactual candidates meet the tolerance condition
-    eps_condition = np.abs(y_primes - y_prime_target) <= tol
+    eps_condition = np.abs(y_primes - y_target) <= tol
     relevant_candidates = candidates[eps_condition]
     # to dataframe, use cols from x
     relevant_candidates = pd.DataFrame(relevant_candidates, columns=x.columns)
