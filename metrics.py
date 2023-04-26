@@ -46,7 +46,7 @@ def closest_real(X, x, x_prime, y, y_target, model, features):
     cat_distance = (x_prime[cat_cols].values != X[cat_cols].values).sum(axis=1)
     
     # Compute total distance
-    total_distance = num_distance + cat_distance * 2
+    total_distance = num_distance + cat_distance
     
     # Find the index and value of the lowest total distance
     min_distance_idx = np.argmin(total_distance)

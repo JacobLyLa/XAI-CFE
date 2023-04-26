@@ -22,7 +22,7 @@ def get_counterfactuals(x, y_target, model, cost_function, features, tol, optimi
         for feature in features:
             feature.sample(trial)
             x_prime[feature.name] = feature.value
-        epsilon_rounding(x, x_prime, 1e-3)
+        epsilon_rounding(x, x_prime, 1e-1)
         return cost_function(x_prime, lambda_k)
 
     # scan over lambda
@@ -35,7 +35,7 @@ def get_counterfactuals(x, y_target, model, cost_function, features, tol, optimi
         for param in x.columns.values:
             if param in study.best_params:
                 x_prime[param] = study.best_params[param]
-        epsilon_rounding(x, x_prime, 1e-3)
+        epsilon_rounding(x, x_prime, 1e-1)
         # predict DataFrame
         prediction = model.predict_proba(x_prime)[0][0]
         y_primes.append(prediction)
