@@ -52,11 +52,11 @@ def distance_closest(X, x, x_prime, y, y_target, model, features):
 
 def CF_distance(X, x, x_prime, y, y_target, model, features):
     watcher2017 = create_wachter2017_cost_function(X, x, y_target, model)
-    return watcher2017(x_prime, 0) # pass lambda=0 to get distance
+    return watcher2017(x_prime, 0) # lambda=0 to get distance
     
 def CF_distance_weighted(X, x, x_prime, y, y_target, model, features):
     watcher2017_weighted = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
-    return watcher2017_weighted(x_prime, 0) # pass lambda=0 to get distance
+    return watcher2017_weighted(x_prime, 0) # lambda=0 to get distance
 
 def generate_individual(X, model, verbose=False):
     x_index = random.randint(0, len(X)-1)
@@ -165,19 +165,23 @@ def test():
     metrics_to_test = [misfit, CF_distance, CF_distance_weighted, sparsity]
     results = [[] for _ in range(len(metrics_to_test))]
 
+    # TODO: setup for other methods(override features to not care about boundaries etc, then set features back after CFF)
+    weighted = True # change this to determine cost function
+
     # create n random individuals
-    individuals = 10
+    individuals = 5
     print(f"Testing {individuals} individuals")
     for i in range(individuals):
         print(i+1, end=" ")
         x, y, y_target, features = generate_individual(X, model, verbose=False)
 
         # choose cost function to optimize CFS on:
+        if weighted:
+            cost_func = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
+        else:
+            cost_func = create_wachter2017_cost_function(X, x, y_target, model)
 
-        #cost_func = create_wachter2017_cost_function(X, x, y_target, model)
-        cost_func = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
-
-        CFS = get_counterfactuals(x, y_target, model, cost_func, features, tol=0.1, optimization_steps=500) # can change tol and steps
+        CFS = get_counterfactuals(x, y_target, model, cost_func, features, tol=0.1, optimization_steps=50) # can change tol and steps
         
         # get best counterfactual if there are any
         if len(CFS) == 0:
@@ -201,7 +205,8 @@ def test():
         print("Median:", np.median(result))
         print("Failed individuals:", fail_count)
         print("-"*40)
-        # TODO: save result for notebook analysis
+        # save result for notebook analysis
+        np.save(f"notebooks/results/weighted={weighted}_{metrics_to_test[i].__name__}_results.npy", result)
 
 if __name__ == "__main__":
     test()
