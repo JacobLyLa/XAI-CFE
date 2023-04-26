@@ -13,7 +13,7 @@ def epsilon_rounding(x, x_prime, epsilon):
                 x_prime[feature] = x[feature].values[0]
 
 def get_counterfactuals(x, y_target, model, cost_function, features, tol, optimization_steps):    
-    lambda_min, lambda_max, lambda_steps = 1e-3, 1e3, 6
+    lambda_min, lambda_max, lambda_steps = 1e-2, 1e2, 5
     lambdas = np.logspace(np.log10(lambda_min), np.log10(lambda_max), lambda_steps)
     candidates, y_primes = [], []
  

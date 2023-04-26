@@ -19,15 +19,44 @@ np.random.seed(42)
 random.seed(42)
 
 '''
+checks how many features that are within the bounds of the original data
 '''
 def within_bounds(X, x, x_prime, y, y_target, model, features):
-    # checks how many features that are within the bounds of the original data
     raise NotImplementedError
 
+
 '''
+finds the minimum distance between x_prime and any point in X
+'''
+def closest_real(X, x, x_prime, y, y_target, model, features):
+    # Separate categorical and numerical columns
+    cat_cols = x_prime.select_dtypes(include=['object', 'bool']).columns
+    num_cols = x_prime.select_dtypes(include=[np.number]).columns
+    
+    # Normalize numerical columns using Modified Z-score
+    X_mad = X[num_cols].mad()
+    X_median = X[num_cols].median()
+    X_normalized = (X[num_cols] - X_median) / X_mad
+    x_prime_normalized = (x_prime[num_cols] - X_median) / X_mad
+    
+    # Compute numerical distance
+    num_distance = np.linalg.norm(x_prime_normalized.values - X_normalized.values, axis=1)
+    
+    # Compute categorical distance
+    cat_distance = (x_prime[cat_cols].values != X[cat_cols].values).sum(axis=1)
+    
+    # Compute total distance
+    total_distance = num_distance + cat_distance * 2
+    
+    # Find the index and value of the lowest total distance
+    min_distance_idx = np.argmin(total_distance)
+    min_distance_value = total_distance[min_distance_idx]
+    return min_distance_value
+
+'''
+# calculate absolute difference between y_target and y_prime_prediction
 '''
 def misfit(X, x, x_prime, y, y_target, model, features):
-    # calculate absolute difference between y_target and y_prime_prediction
     y_prime_prediction = model.predict_proba(x_prime)[0][0]
     return abs(y_target - y_prime_prediction)
 
@@ -43,27 +72,11 @@ def sparsity(X, x, x_prime, y, y_target, model, features):
             same_count += 1
     return same_count / len(x_values)
 
-'''
-returns the closest datapoint from x_prime to any point in X
-'''
-def distance_closest(X, x, x_prime, y, y_target, model, features):
-    raise NotImplementedError
-    candidates = X.copy()
-    # remove str cols in X and x_prime
-    for i in range(len(x)):
-        if features[i].variable_type == object:
-            candidates = candidates.drop(features[i].name, axis=1)
-            x_prime = x_prime.drop(features[i].name, axis=0)
-    # calculate the distance
-    diff = (candidates - x_prime).abs()
-    print(diff.sum(axis=1).min())
-    return diff.sum(axis=1).min()
-
-def CF_distance(X, x, x_prime, y, y_target, model, features):
+def distance(X, x, x_prime, y, y_target, model, features):
     watcher2017 = create_wachter2017_cost_function(X, x, y_target, model)
     return watcher2017(x_prime, 0) # lambda=0 to get distance
     
-def CF_distance_weighted(X, x, x_prime, y, y_target, model, features):
+def distance_weighted(X, x, x_prime, y, y_target, model, features):
     watcher2017_weighted = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
     return watcher2017_weighted(x_prime, 0) # lambda=0 to get distance
 
@@ -186,12 +199,12 @@ def test():
     X = df.drop(columns=['income', 'education'])
     y = df['income']
 
-    metrics_to_test = [misfit, CF_distance, CF_distance_weighted, sparsity]
+    metrics_to_test = [misfit, distance, distance_weighted, sparsity, closest_real]
     results = [[] for _ in range(len(metrics_to_test))]
 
     # change this to determine method and cost function (run each once to get results)
     methods = ("standard", "domain restriction", "intrinsic restriction", "weighted")
-    method = methods[1]
+    method = methods[3]
 
     # create n random individuals
     individuals = 10
@@ -220,7 +233,7 @@ def test():
             cost_func = create_wachter2017_cost_function(X, x, y_target, model)
 
         # use changed features for generating counterfactuals
-        CFS = get_counterfactuals(x, y_target, model, cost_func, features_changed, tol=0.1, optimization_steps=250) # can change tol and steps
+        CFS = get_counterfactuals(x, y_target, model, cost_func, features_changed, tol=0.1, optimization_steps=500) # can change tol and steps
         
         # get best counterfactual if there are any
         if len(CFS) == 0:

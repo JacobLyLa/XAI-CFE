@@ -75,7 +75,7 @@ def create_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, y_target:
         x_prime_normalized[cat_idx] = x_prime[cat_idx]
         
         # Compute distances
-        numeric_distance = np.sum(np.minimum((x_normalized[num_idx] - x_prime_normalized[num_idx])**2, 100).sum())
+        numeric_distance = np.sum(np.minimum((x_normalized[num_idx] - x_prime_normalized[num_idx])**2, 10).sum())
         categorical_distance = np.sum(x_normalized[cat_idx] != x_prime_normalized[cat_idx]).sum()
         
         # Compute misfit
@@ -114,8 +114,8 @@ if __name__ == "__main__":
     features.append(Feature('relationship',  x.values[0][5], X['relationship'].unique()))
     features.append(Feature('race',  x.values[0][6], X['race'].unique(), get_constant_category_weight_function(10.0, x.values[0][6])))
     features.append(Feature('gender',  x.values[0][7], X['gender'].unique(), get_constant_category_weight_function(1, x.values[0][7])))
-    features.append(Feature('capital-gain',  x.values[0][8], (0, 0), get_constant_weight_function(1)))
-    features.append(Feature('capital-loss',  x.values[0][9], (0, 0), get_constant_weight_function(1)))
+    features.append(Feature('capital-gain',  x.values[0][8], (0, 10), get_constant_weight_function(1)))
+    features.append(Feature('capital-loss',  x.values[0][9], (0, 10), get_constant_weight_function(1)))
     features.append(Feature('hours-per-week',  x.values[0][10], (0, 70), get_constant_weight_function(1)))
     features.append(Feature('native-country',  x.values[0][11], X['native-country'].unique()))
     
@@ -143,4 +143,12 @@ if __name__ == "__main__":
     print("Checking weighted cost for first CF")
     weighted_cost = weighted_watcher(x_prime, 0.0)
     print("Weighted cost", weighted_cost)
+
+    capital_loss = features[9]
+    # hist plot of values
+    from matplotlib import pyplot as plt
+    values = capital_loss.value_history
+    plt.hist(values, bins=20)
+    plt.show()
+
     
