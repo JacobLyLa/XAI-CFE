@@ -1,187 +1,192 @@
-import numpy as np
+import os
 import pickle
-import pandas as pd
-from counterfactuals import get_counterfactuals
 import random
-from cost_functions import wachter2017_cost_function, weighted_watcher_cost_function, wachter2017_cost_function_with_categorical, wachter2017_cost_function_ignore_categorical
 import warnings
-from prefrences import Feature, get_constant_weight_function, get_pow_weight_function
+import copy
+import numpy as np
+import pandas as pd
+
+from cost_functions import (create_wachter2017_cost_function,
+                            create_weighted_wachter2017_cost_function)
+from counterfactuals import get_counterfactuals
+from prefrences import (Feature, get_constant_category_weight_function,
+                        get_constant_weight_function, get_pow_weight_function)
+
 warnings.filterwarnings('ignore')
-pd.options.display.float_format = '{:.5f}'.format
+pd.options.display.float_format = '{:.4f}'.format
+np.set_printoptions(formatter={'float': '{: 0.4f}'.format})
 np.random.seed(42)
 random.seed(42)
 
-def test_metric(x_list, p_list, p_prime_list, features_list, X, model, metric, cost_func, steps):
-    results = []
-    for i in range(len(x_list)):
-        print(f"Testing {i+1}/{len(x_list)}")
-        # get the counterfactual
-        counterfactuals = get_counterfactuals(x_list[i], p_prime_list[i], model, X, 
-                                            cost_function=cost_func, tol=0.2, 
-                                            features=features_list[i], optimization_method="optuna", optimization_steps=steps)
-        
-        # get best counterfactual if there are any
-        # TODO: maybe a metric that checks how many time it fails generating any counterfactuals
-        if len(counterfactuals) == 0:
-            continue
-
-        # best CF
-        x_prime = counterfactuals.iloc[0]
-        results.append(metric(x_list[i].iloc[0], x_prime, X, features_list[i], p_list[i], p_prime_list[i]))
-    return np.array(results)
-
-def closeness(x, x_prime, X, features, p, p_prime):
-    # calculate absolute difference between p and p_prime
-    return abs(p - p_prime)
+'''
+checks how many features that are within the bounds of the original data
+'''
+def within_bounds(X, x, x_prime, y, y_target, model, features):
+    raise NotImplementedError
 
 
 '''
-Takes the original x and x_prime and returns the amount of features that have been changed
+finds the minimum distance between x_prime and any point in X
 '''
-def sparsity(x, x_prime, X, features, p, p_prime):
-    # count the number of features that have been changed
-    count = 0
-    for i in range(len(x)):
-        if x[i] != x_prime[i]:
-            count += 1
-    return count / len(x)
+def closest_real(X, x, x_prime, y, y_target, model, features):
+    # Separate categorical and numerical columns
+    cat_cols = x_prime.select_dtypes(include=['object', 'bool']).columns
+    num_cols = x_prime.select_dtypes(include=[np.number]).columns
+    
+    # Normalize numerical columns using Modified Z-score
+    X_mad = X[num_cols].mad()
+    X_median = X[num_cols].median()
+    X_normalized = (X[num_cols] - X_median) / X_mad
+    x_prime_normalized = (x_prime[num_cols] - X_median) / X_mad
+    
+    # Compute numerical distance
+    num_distance = np.linalg.norm(x_prime_normalized.values - X_normalized.values, axis=1)
+    
+    # Compute categorical distance
+    cat_distance = (x_prime[cat_cols].values != X[cat_cols].values).sum(axis=1)
+    
+    # Compute total distance
+    total_distance = num_distance + cat_distance * 2
+    
+    # Find the index and value of the lowest total distance
+    min_distance_idx = np.argmin(total_distance)
+    min_distance_value = total_distance[min_distance_idx]
+    return min_distance_value
 
 '''
-Takes the original x and x_prime and returns the amount of features that are off boundry
+# calculate absolute difference between y_target and y_prime_prediction
 '''
-def off_boundry(x, x_prime, X, features, p, p_prime):
-    # count how many features that are off boundry
-    off_boundry = 0
-    for i in range(len(x)):
-        if x_prime[i] < features[i].boundaries[0] or x_prime[i] > features[i].boundaries[1]:
-            off_boundry += 1
-    return off_boundry / len(x)
+def misfit(X, x, x_prime, y, y_target, model, features):
+    y_prime_prediction = model.predict_proba(x_prime)[0][0]
+    return abs(y_target - y_prime_prediction)
 
 '''
-Takes the original x and x_prime and returns the closest datapoint in X
+returns the amount of features that have not been changed
 '''
-def distance_closest(x, x_prime, X, features, p, p_prime):
-    candidates = X.copy()
-    # remove str cols in X and x_prime
-    for i in range(len(x)):
-        if features[i].variable_type == object:
-            candidates = candidates.drop(features[i].name, axis=1)
-            x_prime = x_prime.drop(features[i].name, axis=0)
-    # calculate the distance
-    diff = (candidates - x_prime).abs()
-    print(diff.sum(axis=1).min())
-    return diff.sum(axis=1).min()
+def sparsity(X, x, x_prime, y, y_target, model, features):
+    same_count = 0
+    x_values = x.values[0]
+    x_prime_values = x_prime.values[0]
+    for i in range(len(x_values)):
+        if x_values[i] == x_prime_values[i]:
+            same_count += 1
+    return same_count / len(x_values)
 
-def total_change(x, x_prime, X, features, p, p_prime):
-    # copy x and x_prime
-    x = x.copy()
-    x_prime = x_prime.copy()
-    # weight the features
-    for i in range(len(x)):
-        if features[i].variable_type == object:
-            # 1 to both if they are the same
-            if x[i] == x_prime[i]:
-                x[i] = 1
-                x_prime[i] = 1
-            else:
-                x[i] = 0
-                x_prime[i] = features[i].weight_function(1)
+def distance(X, x, x_prime, y, y_target, model, features):
+    watcher2017 = create_wachter2017_cost_function(X, x, y_target, model)
+    return watcher2017(x_prime, 0) # lambda=0 to get distance
+    
+def distance_weighted(X, x, x_prime, y, y_target, model, features):
+    watcher2017_weighted = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
+    return watcher2017_weighted(x_prime, 0) # lambda=0 to get distance
 
-    return np.linalg.norm(x_prime - x, ord=2)
 
-def total_change_weighted(x, x_prime, X, features, p, p_prime):
-    # copy x and x_prime
-    x = x.copy()
-    x_prime = x_prime.copy()
-    # weight the features
-    for i in range(len(x)):
-        # if feature is categorical then skip
-        if features[i].variable_type != object:
-            x[i] = features[i].weight_function(x[i])
-            x_prime[i] = features[i].weight_function(x_prime[i])
-        else:
-            # 1 to both if they are the same
-            if x[i] == x_prime[i]:
-                x[i] = 1
-                x_prime[i] = 1
-            else:
-                x[i] = 0
-                x_prime[i] = features[i].weight_function(1)
-
-    return np.linalg.norm(x_prime - x, ord=2)
-
-def generate_individual(X, model, visualize=False):
+'''
+create individual with intrinsically bounded features.
+to test other methods, simply change overwrite bounds, and weight functions
+'''
+def generate_individual(X, model, verbose=False):
     x_index = random.randint(0, len(X)-1)
     x = X.loc[x_index:x_index]
-    # calculate p, from the model
-    p = model.predict_proba(x)[0][0]
-    # adjust p to +- 0.2 probabilisticly, and make sure it is between 0 and 1
-    p_prime = p + random.uniform(-0.3, 0.3)
-    p_prime = max(0.0, min(1.0, p_prime))
+    # calculate y, from the model
+    y = model.predict_proba(x)[0][0]
+    # adjust y to +- 0.2 probabilisticly, and make sure it is between 0 and 1
+    y_target = y + random.uniform(-0.2, 0.2)
+    # if it is over 1, subtract that value instead
+    if y_target > 1:
+        y_target -= 2*(y_target-y)
+    # if it is under 0, add that value instead
+    elif y_target < 0:
+        y_target += 2*(y-y_target)
 
     # create personalized features
     features = []
 
-    feature_name = 'age'
-    lower_boundry = int(x[feature_name])
-    upper_boundry = X[feature_name].max()
-    features.append(Feature(feature_name, int, (lower_boundry, upper_boundry), get_constant_weight_function(random.uniform(0.2, 3))))
+    def num_weight_function():
+        return get_constant_weight_function(random.uniform(0.1, 10)) if random.random() < 0.5 else None
 
-    feature_name = 'workclass'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 3))))
+    def obj_weight_function(value):
+        return get_constant_category_weight_function(random.uniform(0.1, 10), value) if random.random() < 0.5 else None
 
-    feature_name = 'educational-num'
-    lower_boundry = int(x[feature_name])
-    upper_boundry = X[feature_name].max()
-    features.append(Feature(feature_name, int, (lower_boundry, upper_boundry), get_constant_weight_function(random.uniform(0.2, 3))))
+    feature_info = [
+        ('age', 0, 'increase'),
+        ('workclass', 1, 'unique'),
+        ('educational-num', 2, 'increase'),
+        ('marital-status', 3, 'unique'),
+        ('occupation', 4, 'unique'),
+        ('relationship', 5, 'unique'),
+        ('race', 6, 'fixed'),
+        ('gender', 7, 'fixed'),
+        ('capital-gain', 8, 'range'),
+        ('capital-loss', 9, 'range'),
+        ('hours-per-week', 10, 'range'),
+        ('native-country', 11, 'fixed')
+    ]
 
-    feature_name = 'marital-status'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 3))))
+    for feature_name, index, boundry_type in feature_info:
+        value = x.values[0][index]
+        
+        if boundry_type == 'unique':
+            boundry = X[feature_name].unique()
+            weight_function = obj_weight_function(value)
+        elif boundry_type == 'increase':
+            std = X[feature_name].std()
+            lower_boundry = value
+            upper_boundry = int(value + std)
+            boundry = (lower_boundry, upper_boundry)
+            weight_function = num_weight_function()
+        elif boundry_type == 'fixed':
+            boundry = [value]
+            weight_function = obj_weight_function(value)
+        elif boundry_type == 'range':
+            std = X[feature_name].std()
+            lower_boundry = value - std
+            upper_boundry = value + std
+            boundry = (lower_boundry, upper_boundry)
+            weight_function = num_weight_function()
+
+        features.append(Feature(feature_name, value, boundry, weight_function))
     
-    feature_name = 'occupation'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 3))))
-
-    feature_name = 'relationship'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 3))))
-
-    feature_name = 'race'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 3))))
-
-    feature_name = 'gender'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 3))))
-
-    feature_name = 'capital-gain'
-    lower_boundry = X[feature_name].min()
-    upper_boundry = X[feature_name].max()
-    features.append(Feature(feature_name, int, (lower_boundry, upper_boundry), get_constant_weight_function(random.uniform(0.2, 3))))
-
-    feature_name = 'capital-loss'
-    lower_boundry = X[feature_name].min()
-    upper_boundry = X[feature_name].max()
-    features.append(Feature(feature_name, int, (lower_boundry, upper_boundry), get_constant_weight_function(random.uniform(0.2, 2))))
-
-    feature_name = 'hours-per-week'
-    lower_boundry = X[feature_name].min()
-    upper_boundry = X[feature_name].max()
-    features.append(Feature(feature_name, int, (lower_boundry, upper_boundry), get_constant_weight_function(random.uniform(0.2, 2))))
-
-    feature_name = 'native-country'
-    features.append(Feature(feature_name, object, X[feature_name].unique(), get_constant_weight_function(random.uniform(0.2, 2))))
-    
-    # visualize
-    if visualize:
+    # verbose
+    if verbose:
         print('x:')
         print(x)
         print()
-        print('p:', p)
-        print('p_prime:', p_prime)
+        print('y:', y)
+        print('y_target:', y_target)
         print('features:')
         print("-"*50)
         for feature in features:
             print(feature)
         print("-"*50)
 
-    return x, p, p_prime, features
+    return x, y, y_target, features
+
+def standard(features, X):
+    # for each feature
+    # - set numerical featutures to min and max
+    # - categorical to unique values
+    for feature in features:
+        if feature.variable_type == int or feature.variable_type == float:
+            min_value = X[feature.name].min()
+            max_value = X[feature.name].max()
+            feature.boundaries = (min_value, max_value)
+        else:
+            feature.boundaries = X[feature.name].unique()
+    return features
+
+def domain_restriction(features, X, x):
+    # for each feature
+    # - set numerical featutures to value +- std
+    # - categorical to unique values
+    for feature in features:
+        if feature.variable_type == int or feature.variable_type == float:
+            std = X[feature.name].std()
+            value = x[feature.name].values[0]
+            feature.boundaries = (value-std, value+std)
+        else:
+            feature.boundaries = X[feature.name].unique()
+    return features
 
 def test():
     with open('pretrained_models/pipeline_adult.pkl', 'rb') as f:
@@ -190,37 +195,75 @@ def test():
     df = pd.read_csv('datasets/adult.csv', na_values='?')
     df = df.drop(columns = ['fnlwgt'])
     df = df.dropna()
-    # fix indices
     df = df.reset_index(drop=True)
-    X =  df.drop(columns=['income', 'education'])
+    X = df.drop(columns=['income', 'education'])
     y = df['income']
 
-    metric_to_test = [distance_closest]
-    fail_count = 0
-    individuals = 20
-    for metric in metric_to_test:
-        x_list = []
-        p_list = []
-        p_prime_list = []
-        features_list = []
-        # create n random examples
-        for i in range(individuals):
-            x, p, p_prime, features = generate_individual(X, model, visualize=False)
-            x_list.append(x)
-            p_list.append(p)
-            p_prime_list.append(p_prime)
-            features_list.append(features)
-        results = test_metric(x_list, p_list, p_prime_list, features_list, X, model, metric, wachter2017_cost_function_ignore_categorical, 50)
-        fail_count += individuals - len(results)
-        print("Results for metric:", metric.__name__)
-        print(results)
-        print("Average:", results.mean())
-        print("Standard deviation:", results.std())
-        print("Median:", np.median(results))
-        print("-"*40)
-    print("Failed individuals:", fail_count)
-    print("Chance of failure:", fail_count/(len(metric_to_test)*individuals))
+    metrics_to_test = [misfit, distance, distance_weighted, sparsity, closest_real]
+    results = [[] for _ in range(len(metrics_to_test))]
 
-    
+    # change this to determine method and cost function (run each once to get results)
+    methods = ("standard", "domain restriction", "intrinsic restriction", "weighted")
+    method = methods[3]
+
+    # create n random individuals
+    individuals = 10
+    print(f"Testing {individuals} individuals")
+    for i in range(individuals):
+        print(i+1, end=" ")
+        x, y, y_target, features = generate_individual(X, model, verbose=False)
+
+        # if method is standard make all domains min and max of dataset
+        if method == "standard":
+            features_changed = standard(copy.deepcopy(features), X)
+
+        # if method is domain restriction, set domains to be within +- 1 std of x
+        if method == "domain restriction":
+            features_changed = domain_restriction(copy.deepcopy(features), X, x)
+
+        # if method is intrinsic restriction, no need to change, weights will be ignored with default cost function
+        if method == "intrinsic restriction":
+            features_changed = features
+
+        # if method is weighted, no need to change, but use cost function with weights
+        if method == "weighted":
+            features_changed = features
+            cost_func = create_weighted_wachter2017_cost_function(X, x, y_target, model, features)
+        else:
+            cost_func = create_wachter2017_cost_function(X, x, y_target, model)
+
+        # use changed features for generating counterfactuals
+        CFS = get_counterfactuals(x, y_target, model, cost_func, features_changed, tol=0.1, optimization_steps=500) # can change tol and steps
+        
+        # get best counterfactual if there are any
+        if len(CFS) == 0:
+            print("No counterfactuals found for this individual, try increase tol or steps")
+            continue
+
+        # test all CFS on each metric. now using actual features
+        for j in range(len(CFS)):
+            for k, metric in enumerate(metrics_to_test):
+                results[k].append(metric(X, x, CFS.loc[j:j], y, y_target, model, features))
+    print()
+        
+    # for each metric evaluate all examples
+    for i in range(len(metrics_to_test)):
+        result = np.array(results[i])
+        fail_count = individuals - len(results)
+        print("Results for metric:", metrics_to_test[i].__name__)
+        print(result)
+        print("Average:", result.mean())
+        print("Standard deviation:", result.std())
+        print("Median:", np.median(result))
+        print("Failed individuals:", fail_count)
+        print("-"*40)
+        # save result for notebook analysis
+        folder_path = f"notebooks/results/{metrics_to_test[i].__name__}"
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        file_path = f"{folder_path}/{method}.npy"
+        np.save(file_path, result)
+
 if __name__ == "__main__":
     test()
