@@ -23,7 +23,7 @@ def create_weighted_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, 
     # Compute normalized data
     medians = X.median()
     mad = (X - medians).abs().median()
-    epsilon = 1e-6
+    epsilon = 1e-4
     mad[mad == 0] = epsilon
     x_normalized = (x - medians) / mad
     
@@ -43,8 +43,8 @@ def create_weighted_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, 
         # apply feature weights to x_prime
         x_prime_normalized = apply_feature_weights(x_prime_normalized, features)
         
-        # Compute numeric and categorical distances
-        numeric_distance = np.sum((x_normalized[num_idx] - x_prime_normalized[num_idx])**2).sum()
+        # Compute distances
+        numeric_distance = np.sum(np.minimum((x_normalized[num_idx] - x_prime_normalized[num_idx])**2, 100).sum())
         categorical_distance = x_prime_normalized[cat_idx].sum(axis=1).sum()
         
         if lambda_value == 1.1:
@@ -66,7 +66,7 @@ def create_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, y_prime: 
     # Compute normalized data
     medians = X.median()
     mad = (X - medians).abs().median()
-    epsilon = 1e-6
+    epsilon = 1e-4
     mad[mad == 0] = epsilon
     x_normalized = (x - medians) / mad
     
@@ -82,10 +82,10 @@ def create_wachter2017_cost_function(X: pd.DataFrame, x: pd.DataFrame, y_prime: 
         # Put categorical features back
         x_prime_normalized[cat_idx] = x_prime[cat_idx]
         
-        # Compute numeric and categorical distances
-        numeric_distance = np.sum((x_normalized[num_idx] - x_prime_normalized[num_idx])**2).sum()
+        # Compute distances
+        numeric_distance = np.sum(np.minimum((x_normalized[num_idx] - x_prime_normalized[num_idx])**2, 100).sum())
         categorical_distance = np.sum(x_normalized[cat_idx] != x_prime_normalized[cat_idx]).sum()
-        
+
         if lambda_value == 1.1:
             print("numeric_distance", numeric_distance)
             print("categorical_distance", categorical_distance)
@@ -136,19 +136,17 @@ if __name__ == "__main__":
     weighted_watcher = create_weighted_wachter2017_cost_function(X, x, y_prime, model, features)
     
     # First optimize with normal cost function
-    CFS = get_counterfactuals(x, y_prime, model, normal_watcher, features, 0.1, 500)
+    CFS = get_counterfactuals(x, y_prime, model, normal_watcher, features, 0.1, 200)
     print("CFS:")
     print(CFS)
     x_prime = CFS.loc[0:0]
-    print("Checking normal cost for first CF")
     normal_cost = normal_watcher(x_prime, 1.0)
     print("Normal cost", normal_cost)
-    print("Checking weighted cost for first CF")
     weighted_cost = weighted_watcher(x_prime, 1.0)
     print("Weighted cost", weighted_cost)
     
     # Then optimize with weighted cost function
-    CFS = get_counterfactuals(x, y_prime, model, weighted_watcher, features, 0.1, 500)
+    CFS = get_counterfactuals(x, y_prime, model, weighted_watcher, features, 0.1, 200)
     print("CFS:")
     print(CFS)
     x_prime = CFS.loc[0:0]

@@ -23,17 +23,17 @@ def objective(trial, x, lambda_k, cost_function, features):
     return cost_function(x_prime, lambda_k)
 
 def get_counterfactuals(x, y_prime_target, model, cost_function, features, tol, optimization_steps):    
-    lambda_min =  1e-10
+    lambda_min =  1e-5
     lambda_max = 1e10
-    lambda_steps = 3
+    lambda_steps = 5
     lambdas = np.logspace(np.log10(lambda_min), np.log10(lambda_max), lambda_steps)
     candidates = []
     y_primes = []
  
     # scan over lambda
     for lambda_k in lambdas:
-        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.NSGAIISampler(seed=0))
-        study.optimize(lambda trial: objective(trial, x, lambda_k, cost_function, features), n_trials=optimization_steps, n_jobs=4)
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.TPESampler(seed=42))
+        study.optimize(lambda trial: objective(trial, x, lambda_k, cost_function, features), n_trials=optimization_steps)
   
         # get best counterfactual candidate
         x_prime = x.copy()
