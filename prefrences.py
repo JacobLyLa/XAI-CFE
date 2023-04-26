@@ -4,6 +4,8 @@ Weight functions and Feature helper class for usage in cost functions
 
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
+
 
 """
     Returns a function that always returns the same value
@@ -79,9 +81,31 @@ class Feature:
     def __str__(self):
         return f"{self.name}={self.value} boundaries={self.boundaries}"
 
+        def __deepcopy__(self, memo):
+            # Create a new instance of the Feature class
+            new_instance = Feature(
+                copy.deepcopy(self.name, memo),
+                copy.deepcopy(self.initial_value, memo),
+                copy.deepcopy(self.boundaries, memo),
+                copy.deepcopy(self.weight_function, memo)
+            )
+            # Set the variable_type attribute
+            new_instance.variable_type = copy.deepcopy(self.variable_type, memo)
+
+            return new_instance
+
 
 if __name__ == "__main__":
     # define a feature
-    feature = Feature("age", 30, int, (30, 100), get_pow_weight_function(50, 60, 20, 1000))
+    feature = Feature("age", 30, (30, 100), get_pow_weight_function(50, 60, 20, 1000))
+    # test deepcopy
+    feature_copy = copy.deepcopy(feature)
+    # change the function of the original feature
+    feature.weight_function = get_constant_weight_function(1)
+    # test both functions
+    print(feature.weight_function(50))
+    print(feature_copy.weight_function(55))
+
+
     # plot the weight function
-    plot_function(feature.weight_function, 0, 100)
+    plot_function(feature_copy.weight_function, 0, 100)
