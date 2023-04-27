@@ -204,10 +204,10 @@ def test():
 
     # change this to determine method and cost function (run each once to get results)
     methods = ("standard", "domain restriction", "intrinsic restriction", "weighted")
-    method = methods[3]
+    method = methods[3] ### -------- CHANGE THIS FOR EACH RUN -------- ###
 
     # create n random individuals
-    individuals = 10
+    individuals = 50
     print(f"Testing {individuals} individuals")
     for i in range(individuals):
         print(i+1, end=" ")
@@ -233,7 +233,7 @@ def test():
             cost_func = create_wachter2017_cost_function(X, x, y_target, model)
 
         # use changed features for generating counterfactuals
-        CFS = get_counterfactuals(x, y_target, model, cost_func, features_changed, tol=0.1, optimization_steps=500) # can change tol and steps
+        CFS = get_counterfactuals(x, y_target, model, cost_func, features_changed, tol=0.05, optimization_steps=1000) # can change tol and steps
         
         # get best counterfactual if there are any
         if len(CFS) == 0:
